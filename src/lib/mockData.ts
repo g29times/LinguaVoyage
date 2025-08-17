@@ -149,41 +149,41 @@ export const mockLearningModules: LearningModule[] = [
   {
     id: 'listening_1',
     type: 'listening',
-    title: 'Tech Industry Interview',
+    title: 'Interactive Audio Experience',
     content: {
       audio_url: '/audio/tech-interview.mp3',
-      transcript: 'Welcome to Tech Talk. Today we\'re discussing...',
-      tasks: ['Identify key arguments', 'Summarize main points']
+      transcript: '🚀 精彩听力内容即将上线！New listening modules launching soon with interactive audio experiences',
+      tasks: ['Real-time pronunciation feedback', 'Adaptive listening exercises', 'Interactive audio content']
     },
     estimated_duration: 6,
     difficulty_level: 6,
-    learning_objectives: ['Listening comprehension', 'Note-taking'],
+    learning_objectives: ['Interactive audio content', 'Real-time pronunciation feedback', 'Adaptive listening exercises'],
     story_chapter: mockStoryChapters[0]
   },
   {
     id: 'speaking_1',
     type: 'speaking',
-    title: 'Debate: AI Ethics',
+    title: 'AI Conversation Practice',
     content: {
-      prompt: 'Argue for or against the regulation of AI in creative industries',
-      target_expressions: ['In my opinion', 'Furthermore', 'On the contrary']
+      prompt: '✨ 智能口语练习功能开发中！Advanced AI-powered speaking practice coming soon',
+      target_expressions: ['AI pronunciation coaching', 'Real-time feedback system', 'Interactive role-play scenarios']
     },
     estimated_duration: 10,
     difficulty_level: 8,
-    learning_objectives: ['Argumentation', 'Fluency'],
+    learning_objectives: ['AI pronunciation coaching', 'Real-time feedback system', 'Interactive role-play scenarios'],
     story_chapter: mockStoryChapters[0]
   },
   {
     id: 'writing_1',
     type: 'writing',
-    title: 'Business Analysis',
+    title: 'Smart Writing Assistant',
     content: {
-      prompt: 'Write a 300-word analysis of AI\'s impact on traditional business models',
-      requirements: ['Clear thesis', 'Supporting evidence', 'Professional tone']
+      prompt: '🔥 AI写作助手即将发布！Intelligent writing coaching and feedback system in development', 
+      requirements: ['AI-powered grammar checking', 'Style improvement suggestions', 'Personalized writing feedback']
     },
     estimated_duration: 15,
     difficulty_level: 7,
-    learning_objectives: ['Academic writing', 'Business vocabulary'],
+    learning_objectives: ['AI-powered grammar checking', 'Style improvement suggestions', 'Personalized writing feedback'],
     story_chapter: mockStoryChapters[0]
   }
 ];

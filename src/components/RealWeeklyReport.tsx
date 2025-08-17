@@ -11,7 +11,9 @@ interface RealWeeklyReportProps {
 }
 
 export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportProps) {
-  const { progress, loading } = useUserProgress();
+  const { progress, loading, error } = useUserProgress();
+  
+  console.log('RealWeeklyReport - Loading:', loading, 'Error:', error, 'Progress:', progress);
 
   const getWeekDateRange = () => {
     const now = new Date();
@@ -27,11 +29,36 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
           <div className="text-center p-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
             <p>Loading your learning data...</p>
+            <p className="text-xs text-gray-500 mt-2">Debug: Loading state active</p>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
+
+  if (error) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl">
+          <div className="text-center p-8">
+            <div className="text-red-500 text-xl mb-4">⚠️</div>
+            <p className="text-red-600 mb-4">Error loading your learning data</p>
+            <p className="text-sm text-gray-500 mb-4">{error}</p>
+            <Button onClick={onClose}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Fallback for when progress is undefined/null
+  const safeProgress = progress || {
+    totalSessions: 0,
+    weeklyIP: 0,
+    totalIP: 0,
+    badges: [],
+    completedModules: []
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -50,19 +77,19 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
           <div className="grid grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">{progress.totalSessions}</div>
+                <div className="text-2xl font-bold text-blue-600">{safeProgress.totalSessions || 0}</div>
                 <div className="text-sm text-muted-foreground">Learning Sessions</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-purple-600">{progress.weeklyIP}</div>
+                <div className="text-2xl font-bold text-purple-600">{safeProgress.weeklyIP || 0}</div>
                 <div className="text-sm text-muted-foreground">IP Points This Week</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-yellow-600">{progress.badges.length}</div>
+                <div className="text-2xl font-bold text-yellow-600">{safeProgress.badges?.length || 0}</div>
                 <div className="text-sm text-muted-foreground">Total Badges</div>
               </CardContent>
             </Card>
@@ -71,7 +98,7 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
           {/* Progress Message */}
           <Card>
             <CardContent className="p-6 text-center">
-              {progress.totalSessions === 0 ? (
+              {(safeProgress.totalSessions || 0) === 0 ? (
                 <div>
                   <h3 className="text-lg font-semibold mb-2">🌟 Welcome to Your Learning Journey!</h3>
                   <p className="text-muted-foreground mb-4">
@@ -83,7 +110,7 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
                 <div>
                   <h3 className="text-lg font-semibold mb-2">🎉 Great Progress!</h3>
                   <p className="text-muted-foreground mb-4">
-                    You've completed {progress.totalSessions} learning session{progress.totalSessions !== 1 ? 's' : ''} and earned {progress.totalIP} total IP points.
+                    You've completed {safeProgress.totalSessions || 0} learning session{(safeProgress.totalSessions || 0) !== 1 ? 's' : ''} and earned {safeProgress.totalIP || 0} total IP points.
                   </p>
                   <Badge variant="default">Active Learner</Badge>
                 </div>
@@ -100,7 +127,7 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
             <Card>
               <CardContent className="p-4">
                 <ul className="space-y-2">
-                  {progress.totalSessions === 0 ? (
+                  {(safeProgress.totalSessions || 0) === 0 ? (
                     <li className="flex items-start gap-2 text-sm">
                       <span className="text-blue-500 mt-0.5">•</span>
                       <span>Complete your first module to unlock personalized insights</span>
@@ -109,7 +136,7 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
                     <>
                       <li className="flex items-start gap-2 text-sm">
                         <span className="text-green-500 mt-0.5">•</span>
-                        <span>You've successfully completed {progress.completedModules.length} learning module{progress.completedModules.length !== 1 ? 's' : ''}</span>
+                        <span>You've successfully completed {safeProgress.completedModules?.length || 0} learning module{(safeProgress.completedModules?.length || 0) !== 1 ? 's' : ''}</span>
                       </li>
                       <li className="flex items-start gap-2 text-sm">
                         <span className="text-green-500 mt-0.5">•</span>
@@ -131,7 +158,7 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
             <Card>
               <CardContent className="p-4">
                 <ul className="space-y-2">
-                  {progress.totalSessions === 0 ? (
+                  {(safeProgress.totalSessions || 0) === 0 ? (
                     <>
                       <li className="flex items-start gap-2 text-sm">
                         <span className="text-blue-500 mt-0.5">→</span>

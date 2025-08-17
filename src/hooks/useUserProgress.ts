@@ -20,13 +20,19 @@ export function useUserProgress() {
     badges: []
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  console.log('🔍 useUserProgress: Current user:', user?.id);
-  console.log('🔍 useUserProgress: Current progress state:', progress);
+  // Reduced logging - only log on significant changes
+  if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
+    console.log('🔍 useUserProgress: Current user:', user?.id);
+    console.log('🔍 useUserProgress: Current progress state:', progress);
+  }
 
   useEffect(() => {
-    if (user && !loading) {
+    if (user) {
       loadUserProgress();
+    } else {
+      setLoading(false);
     }
   }, [user?.id]); // Only depend on user ID, not entire user object
 
@@ -101,10 +107,11 @@ export function useUserProgress() {
 
     } catch (error) {
       console.error('Error loading user progress:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load progress');
     } finally {
       setLoading(false);
     }
   };
 
-  return { progress, loading, refreshProgress: loadUserProgress };
+  return { progress, loading, error, refreshProgress: loadUserProgress };
 }

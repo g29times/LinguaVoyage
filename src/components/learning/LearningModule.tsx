@@ -78,61 +78,31 @@ export default function LearningModule() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Debug logs
-  console.log('🔍 LearningModule component mounted/updated');
-  console.log('📝 Module ID from params:', moduleId);
-  console.log('👤 User ID:', user?.id);
-  console.log('🌐 Current URL:', window.location.href);
-  console.log('📍 Current pathname:', window.location.pathname);
 
-  // Get sections dynamically from module data ONLY - no more hardcoded fallback
-  const sections = module ? 
-    ['overview', ...Object.keys(module.content).sort(), 'summary'] : 
-    ['overview']; // Minimal fallback during loading
+
+  // Fixed 5-section flow: overview -> reading -> vocabulary -> exercises -> summary
+  // These are page navigation sections, not database field mappings
+  const sections = ['overview', 'reading', 'vocabulary', 'exercises', 'summary'];
   const currentSectionIndex = sections.indexOf(currentSection);
   
-  // Track completion status for each section
+  // Track completion status for each section - removed assessment
   const [sectionCompletions, setSectionCompletions] = useState<{[key: string]: boolean}>({
     overview: false,
     reading: false,
     vocabulary: false,
     exercises: false,
-    assessment: false
+    summary: false
   });
   
-  console.log('🔍 LearningModule: Dynamic sections array:', sections);
-  console.log('🔍 LearningModule: Section completions:', sectionCompletions);
-  console.log('🔍 LearningModule: Current section:', currentSection);
-  console.log('🔍 LearningModule: Current section index:', currentSectionIndex);
+
 
   useEffect(() => {
-    console.log('🔄 LearningModule useEffect triggered');
-    console.log('📝 moduleId:', moduleId);
-    console.log('👤 user:', user?.id);
-    console.log('🔍 LearningModule: Current sections array length:', sections.length);
-    
     if (moduleId && user) {
-      console.log('✅ Conditions met, calling loadModuleAndProgress');
       loadModuleAndProgress();
-    } else {
-      console.log('❌ Conditions not met');
-      console.log('   - moduleId exists:', !!moduleId);
-      console.log('   - user exists:', !!user);
     }
   }, [moduleId, user?.id]);
 
-  // SECTION CONSISTENCY DEBUG LOGS
-  useEffect(() => {
-    if (module) {
-      console.log('🔍 SECTION CONSISTENCY CHECK:');
-      console.log('📊 Database content sections:', Object.keys(module.content));
-      console.log('📊 Frontend sections array:', sections);
-      console.log('📊 Database sections count:', Object.keys(module.content).length);
-      console.log('📊 Frontend sections count:', sections.length);
-      console.log('📊 Sections match?', sections.length === Object.keys(module.content).length + 1); // +1 for overview
-      console.log('📊 Expected total for progress:', Object.keys(module.content).length);
-    }
-  }, [module, sections]);
+
 
 
   const loadModuleAndProgress = async () => {
@@ -162,12 +132,11 @@ export default function LearningModule() {
       const { data: moduleData, error: moduleError } = await moduleQuery;
 
       if (moduleError) {
-        console.log('🔍 LearningModule: Module query error:', moduleError);
+  
         throw moduleError;
       }
       
-      console.log('🔍 LearningModule: Module data loaded:', moduleData?.title);
-      console.log('🔍 LearningModule: Module content sections:', Object.keys(moduleData?.content || {}));
+
       setModule(moduleData);
 
       // Load user progress using the actual module ID from database
@@ -186,6 +155,22 @@ export default function LearningModule() {
       if (progressData) {
         setUserProgress(progressData);
         setCurrentSection(progressData.progress_data.current_section as any || 'overview');
+        
+        // Initialize section completions from database
+        const completedFromDB = progressData.progress_data.completed_sections || [];
+        const newCompletions = {
+          overview: false,
+          reading: false,
+          vocabulary: false,
+          exercises: false,
+          summary: false
+        };
+        completedFromDB.forEach(section => {
+          if (newCompletions.hasOwnProperty(section)) {
+            newCompletions[section] = true;
+          }
+        });
+        setSectionCompletions(newCompletions);
       } else {
         // Create initial progress record using actual module ID
         const initialProgress: Omit<UserProgress, 'id'> = {
@@ -222,8 +207,18 @@ export default function LearningModule() {
     if (!userProgress || !user) return;
 
     const updatedProgressData = { ...userProgress.progress_data, ...updates };
-    const completedCount = updatedProgressData.completed_sections.length;
-    const totalSections = module ? Object.keys(module.content).length : 4; // Use actual content sections
+    
+    // Only count actual learning sections: reading, vocabulary, exercises, summary
+    // Filter out 'overview' from completed sections if it exists
+    const validCompletedSections = updatedProgressData.completed_sections.filter(
+      section => ['reading', 'vocabulary', 'exercises', 'summary'].includes(section)
+    );
+    const completedCount = validCompletedSections.length;
+    
+    // Update the progress data with filtered sections
+    updatedProgressData.completed_sections = validCompletedSections;
+    
+    const totalSections = 4; // reading, vocabulary, exercises, summary
     const progressPercentage = Math.round((completedCount / totalSections) * 100);
 
     try {
@@ -249,11 +244,15 @@ export default function LearningModule() {
 
   const goToSection = (section: typeof currentSection) => {
     setCurrentSection(section);
+    // Only update current_section, do NOT mark as complete
     updateProgress({ current_section: section });
   };
 
   const completeSection = (sectionName: string) => {
     if (!userProgress) return;
+    
+    // Skip overview - it should not be added to completed_sections
+    if (sectionName === 'overview') return;
     
     const completedSections = [...userProgress.progress_data.completed_sections];
     if (!completedSections.includes(sectionName)) {
@@ -272,7 +271,6 @@ export default function LearningModule() {
 
   const nextSection = () => {
     if (!canProceedToNext()) {
-      console.log('🚫 Cannot proceed - section not completed:', currentSection);
       return;
     }
     
@@ -288,7 +286,6 @@ export default function LearningModule() {
   };
 
   const markSectionComplete = (sectionName: string) => {
-    console.log('✅ Marking section complete:', sectionName);
     setSectionCompletions(prev => ({
       ...prev,
       [sectionName]: true
@@ -310,11 +307,33 @@ export default function LearningModule() {
   if (error || !module) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-lg text-red-600 mb-4">{error || 'Module not found'}</p>
-          <Button onClick={() => navigate('/dashboard')}>
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="mb-6">
+            <div className="text-6xl mb-4">🚀</div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">精彩内容即将上线</h2>
+            <h3 className="text-xl font-semibold text-gray-600 mb-4">Exciting Content Coming Soon</h3>
+          </div>
+          
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200 mb-6">
+            <p className="text-sm text-gray-700 mb-2">
+              我们正在为您准备更多优质的学习体验，敬请期待！
+            </p>
+            <p className="text-sm text-gray-600">
+              We are preparing more quality learning experiences for you. Please stay tuned!
+            </p>
+          </div>
+          
+          {error && (
+            <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
+              <p className="text-xs text-yellow-700">
+                Debug info: {error}
+              </p>
+            </div>
+          )}
+          
+          <Button onClick={() => navigate('/dashboard')} className="w-full">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            返回学习中心 / Back to Dashboard
           </Button>
         </div>
       </div>
@@ -333,7 +352,7 @@ export default function LearningModule() {
                   <CardDescription className="text-base">{module.description}</CardDescription>
                 </div>
                 <Badge variant={module.level === 'advanced' ? 'destructive' : 'default'}>
-                  {module.level}
+                  {module.level || 'Beginner'}
                 </Badge>
               </div>
             </CardHeader>
@@ -341,35 +360,34 @@ export default function LearningModule() {
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
                   <Clock className="w-5 h-5 text-blue-600" />
-                  <span>{module.estimated_time} min</span>
+                  <span>{module.estimated_time || 30} min</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Target className="w-5 h-5 text-green-600" />
-                  <span>{module.objectives.length} objectives</span>
+                  <span>{module.objectives?.length || 0} objectives</span>
                 </div>
               </div>
 
               <div>
                 <h3 className="font-semibold mb-3">Learning Objectives:</h3>
                 <div className="flex flex-wrap gap-2">
-                  {module.objectives.map((objective, index) => (
+                  {module.objectives?.map((objective, index) => (
                     <Badge key={index} variant="outline">
                       {objective}
                     </Badge>
-                  ))}
+                  )) || <Badge variant="outline">No objectives available</Badge>}
                 </div>
               </div>
 
               {userProgress && (
                 <ProgressTracker 
                   progress={userProgress}
-                  totalSections={module ? Object.keys(module.content).length : 4}
+                  totalSections={4}
                 />
               )}
 
               <div className="pt-4">
                 <Button onClick={() => {
-                  markSectionComplete('overview');
                   nextSection();
                 }} className="w-full">
                   Start Learning
@@ -383,7 +401,7 @@ export default function LearningModule() {
       case 'reading':
         return (
           <ReadingContent 
-            content={module.content.reading}
+            content={module.content?.reading || { title: 'Reading Content', content: 'Content not available' }}
             onComplete={() => markSectionComplete('reading')}
             isCompleted={sectionCompletions.reading}
           />
@@ -392,7 +410,7 @@ export default function LearningModule() {
       case 'vocabulary':
         return (
           <VocabularySection 
-            vocabulary={module.content.vocabulary}
+            vocabulary={module.content?.vocabulary || []}
             onComplete={() => markSectionComplete('vocabulary')}
             isCompleted={sectionCompletions.vocabulary}
           />
@@ -401,34 +419,39 @@ export default function LearningModule() {
       case 'exercises':
         return (
           <ExerciseSection 
-            exercises={module.content.exercises}
-            assessment={module.content.assessment}
+            exercises={module.content?.exercises || []}
+            assessment={module.content?.assessment || { passing_score: 80, total_points: 100, exercise_weights: {} }}
             onComplete={(score) => {
-              markSectionComplete('exercises');
+              // Mark exercises as complete and update all data in one call
+              setSectionCompletions(prev => ({ ...prev, exercises: true }));
+              
+              const completedSections = [...(userProgress?.progress_data.completed_sections || [])];
+              if (!completedSections.includes('exercises')) {
+                completedSections.push('exercises');
+              }
+              
+              const updatedExerciseScores = { 
+                ...userProgress?.progress_data.exercise_scores,
+                exercises: score 
+              };
+              
+              // Single updateProgress call with all data
               updateProgress({ 
-                exercise_scores: { exercises: score },
+                completed_sections: completedSections,
+                exercise_scores: updatedExerciseScores,
                 total_score: score
               });
+              
+              // Auto-complete summary since it's just a display page
+              setTimeout(() => {
+                markSectionComplete('summary');
+              }, 100);
             }}
             isCompleted={sectionCompletions.exercises}
           />
         );
         
-      case 'assessment':
-        return (
-          <ExerciseSection 
-            exercises={module.content.assessment || module.content.exercises}
-            assessment={module.content.assessment}
-            onComplete={(score) => {
-              markSectionComplete('assessment');
-              updateProgress({ 
-                exercise_scores: { assessment: score },
-                total_score: score
-              });
-            }}
-            isCompleted={sectionCompletions.assessment}
-          />
-        );
+
 
       case 'summary':
         return (
@@ -438,22 +461,46 @@ export default function LearningModule() {
               <CardDescription>Congratulations on completing "{module.title}"</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Assessment-based summary display */}
+              {module.content?.assessment && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold mb-2">Assessment Summary</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Passing Score:</span>
+                      <span className="ml-2 font-medium">{module.content.assessment.passing_score}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Total Points:</span>
+                      <span className="ml-2 font-medium">{module.content.assessment.total_points}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {userProgress && (
                 <ProgressTracker 
                   progress={userProgress}
-                  totalSections={sections.length - 1}
+                  totalSections={4}
                   showDetails
                 />
               )}
 
-              <div className="text-center pt-6">
-                <Button onClick={() => navigate('/dashboard')} className="mr-4">
+              <div className="flex justify-between pt-6">
+                <Button variant="outline" onClick={prevSection}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Dashboard
+                  Previous
                 </Button>
-                <Button variant="outline" onClick={() => navigate('/learning')}>
-                  More Modules
-                </Button>
+                
+                <div className="flex gap-4">
+                  <Button onClick={() => navigate('/dashboard')}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Dashboard
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate('/learning')}>
+                    More Modules
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -476,23 +523,10 @@ export default function LearningModule() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold">{module.title}</h1>
-              <p className="text-gray-600">
-                Section {currentSectionIndex + 1} of {sections.length}: {currentSection}
-              </p>
-              <p className="text-xs text-gray-400">
-                Debug: sections=[{sections.join(', ')}] | current={currentSection} | index={currentSectionIndex}
-              </p>
             </div>
           </div>
           
-          {userProgress && (
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                Progress: {userProgress.progress_percentage}%
-              </div>
-              <Progress value={userProgress.progress_percentage} className="w-32" />
-            </div>
-          )}
+
         </div>
 
         {/* Content */}

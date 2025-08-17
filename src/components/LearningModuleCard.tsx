@@ -41,9 +41,10 @@ export default function LearningModuleCard({ module, onStart }: LearningModuleCa
   };
 
   const getButtonText = (moduleId: string) => {
-    console.log('🔍 LearningModuleCard: Checking module ID:', moduleId);
-    console.log('🔍 LearningModuleCard: Completed modules:', progress?.completedModules);
-    console.log('🔍 LearningModuleCard: Is completed?', progress?.completedModules?.includes(moduleId));
+    // Simplified logging for better performance
+    if (process.env.NODE_ENV === 'development' && progress?.completedModules?.includes(moduleId)) {
+      console.log('✅ Module completed:', moduleId);
+    }
     
     if (progress?.completedModules?.includes(moduleId)) {
       return 'Review Module';

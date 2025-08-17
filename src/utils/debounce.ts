@@ -1,5 +1,5 @@
 // 通用防抖函数
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -13,7 +13,7 @@ export function debounce<T extends (...args: any[]) => any>(
 // 请求去重管理器
 class RequestDeduplicator {
   private static instance: RequestDeduplicator;
-  private activeRequests: Map<string, Promise<any>> = new Map();
+  private activeRequests: Map<string, Promise<unknown>> = new Map();
 
   static getInstance(): RequestDeduplicator {
     if (!RequestDeduplicator.instance) {

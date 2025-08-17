@@ -30,13 +30,13 @@ interface ExerciseSectionProps {
 
 export default function ExerciseSection({ exercises, assessment, onComplete }: ExerciseSectionProps) {
   const [currentExercise, setCurrentExercise] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, any>>({});
+  const [answers, setAnswers] = useState<Record<number, string | number | Record<number, string>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
 
   const currentEx = exercises[currentExercise];
 
-  const handleAnswer = (answer: any) => {
+  const handleAnswer = (answer: string | number | Record<number, string>) => {
     setAnswers(prev => ({ ...prev, [currentExercise]: answer }));
   };
 

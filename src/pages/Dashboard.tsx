@@ -43,6 +43,8 @@ export default function Dashboard() {
     console.log('🔄 About to navigate...');
     
     try {
+      // Always navigate to the learning module page
+      // The LearningModule component will handle showing "Coming Soon" vs actual content
       if (moduleId === 'reading_1' || moduleId.includes('AI') || moduleId.includes('creative')) {
         console.log('✅ Matching condition, navigating to ai-creative-industries');
         console.log('🎯 Navigation target:', '/learning/ai-creative-industries');

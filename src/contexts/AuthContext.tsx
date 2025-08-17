@@ -37,14 +37,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}] Auth state change:`, {
-        event,
-        hasSession: !!session,
-        userEmail: session?.user?.email,
-        currentPath: window.location.pathname,
-        currentUrl: window.location.href
-      });
+      // Only log important auth events in development
+      if (process.env.NODE_ENV === 'development' && (event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
+        console.log(`🔐 Auth: ${event} - ${session?.user?.email || 'No user'}`);
+      }
 
       setSession(session);
       setUser(session?.user as AuthUser || null);
@@ -54,28 +50,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Handle successful OAuth sign in
       if (event === 'SIGNED_IN' && session) {
         const currentPath = window.location.pathname;
-        console.log(`[${timestamp}] SIGNED_IN event detected:`, {
-          currentPath,
-          userEmail: session.user.email,
-          provider: session.user.app_metadata?.provider,
-          hasHash: !!window.location.hash
-        });
+        // Simplified auth logging for OAuth
         
         // Clear any URL fragments from OAuth redirect
         if (window.location.hash && window.location.hash.includes('access_token')) {
-          console.log(`[${timestamp}] Clearing OAuth hash from URL`);
           window.history.replaceState(null, '', window.location.pathname);
         }
         
         // If we're on auth page or OAuth callback, redirect to home
         if (currentPath === '/auth' || currentPath === '/auth/callback') {
-          console.log(`[${timestamp}] OAuth sign-in detected, will redirect to home in 100ms...`);
           setTimeout(() => {
-            console.log(`[${new Date().toISOString()}] Executing redirect to home page`);
             window.location.href = '/';
           }, 100);
-        } else {
-          console.log(`[${timestamp}] User signed in but not on auth page, current path: ${currentPath}`);
         }
       }
     });
