@@ -51,29 +51,28 @@ export function useUserProgress() {
 
       console.log('🔍 useUserProgress: Raw completed modules from DB:', completedModules);
 
-      // Get user profile for IP and badges - try different table names
-      let profile = null;
+      // Get user progress for IP and badges from the correct table
+      let profile: { total_ip?: number; unlocked_badges?: string[] } | null = null;
       try {
-        const { data: profileData, error: profileError } = await supabase
-          .from('app_24b6a0157d_user_profiles')
+        const { data: progData, error: progError } = await supabase
+          .from('app_24b6a0157d_user_progress')
           .select('total_ip, unlocked_badges')
           .eq('user_id', user.id)
           .single();
-        
-        if (profileError) {
-          console.log('🔍 Profile table not found, trying alternative...', profileError);
-          // Try alternative table name or create fallback
-          const { data: altProfile } = await supabase
-            .from('user_profiles')
+
+        if (progError) {
+          console.log('🔍 Progress table not found, trying alternative...', progError);
+          const { data: altProg } = await supabase
+            .from('user_progress')
             .select('total_ip, unlocked_badges')
             .eq('user_id', user.id)
             .single();
-          profile = altProfile;
+          profile = altProg;
         } else {
-          profile = profileData;
+          profile = progData;
         }
       } catch (error) {
-        console.log('🔍 Profile lookup failed, using defaults:', error);
+        console.log('🔍 Progress lookup failed, using defaults:', error);
         profile = { total_ip: 0, unlocked_badges: [] };
       }
 

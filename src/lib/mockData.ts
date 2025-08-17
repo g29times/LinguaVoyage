@@ -62,7 +62,7 @@ export const mockSpells: Spell[] = [
     name: 'Word Insight',
     description: 'Unlock advanced vocabulary analysis with etymology and usage patterns',
     icon: '✨',
-    ip_cost: 500,
+    ip_cost: 50,
     category: 'vocabulary',
     unlocked: true
   },
@@ -71,7 +71,7 @@ export const mockSpells: Spell[] = [
     name: 'MBTI Vision',
     description: 'View your personality profiling progress and insights',
     icon: '👁️',
-    ip_cost: 1000,
+    ip_cost: 25,
     category: 'progress',
     unlocked: false
   },
@@ -80,7 +80,7 @@ export const mockSpells: Spell[] = [
     name: 'Linguistic Radar',
     description: 'See detailed language pattern analysis in real-time',
     icon: '📡',
-    ip_cost: 750,
+    ip_cost: 75,
     category: 'analysis',
     unlocked: false
   },
@@ -89,7 +89,7 @@ export const mockSpells: Spell[] = [
     name: 'Companion Bond',
     description: 'Unlock deeper AI companion interactions and memory sharing',
     icon: '🤝',
-    ip_cost: 1200,
+    ip_cost: 120,
     category: 'social',
     unlocked: false
   }

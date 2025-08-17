@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Lock } from 'lucide-react';
@@ -8,9 +9,12 @@ import { mockUser } from '@/lib/mockData';
 interface MBTIProgressProps {
   indicators: MBTIIndicators;
   spellUnlocked: boolean;
+  currentIP?: number;
+  requiredIP?: number; // default 25 if not provided
+  onUnlock?: () => void; // optional unlock action
 }
 
-export default function MBTIProgress({ indicators, spellUnlocked }: MBTIProgressProps) {
+export default function MBTIProgress({ indicators, spellUnlocked, currentIP = 0, requiredIP = 25, onUnlock }: MBTIProgressProps) {
   const getPersonalityType = (indicators: MBTIIndicators) => {
     const e = indicators.extraversion_score > 0.5 ? 'E' : 'I';
     const s = indicators.sensing_score > 0.5 ? 'S' : 'N';
@@ -31,7 +35,7 @@ export default function MBTIProgress({ indicators, spellUnlocked }: MBTIProgress
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              🧠 MBTI Personality Insights
+              MBTI Personality Insights
               {!spellUnlocked && <Lock className="h-4 w-4 text-gray-400" />}
               {spellUnlocked && <Eye className="h-4 w-4 text-blue-500" />}
             </CardTitle>
@@ -54,7 +58,19 @@ export default function MBTIProgress({ indicators, spellUnlocked }: MBTIProgress
             <p className="text-sm text-muted-foreground mb-2">
               Unlock "MBTI Vision" spell to see your personality insights
             </p>
-            <Badge variant="outline">Costs 1,000 IP</Badge>
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Badge variant="outline">Costs {requiredIP} IP</Badge>
+              <span className="text-xs text-gray-500">• You have {currentIP} IP</span>
+            </div>
+            {currentIP >= requiredIP ? (
+              <Button size="sm" onClick={onUnlock} className="bg-purple-600 text-white hover:bg-purple-700">
+                Unlock now
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" disabled>
+                Need {Math.max(0, requiredIP - currentIP)} more IP
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-6">

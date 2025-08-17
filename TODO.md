@@ -2,7 +2,10 @@
 
 ## 🚨 高优先级问题
 
-### 1. 环境变量与安全
+### 产品设计闭环
+    用户体验、积分、MBTI解锁、成就、好友闭环
+    
+### 1. 环境变量与安全（已解决）
 **问题：** Supabase 与 OpenRouter 密钥在前端暴露，存在安全与 CORS 风险。
 **方案：**
 - 将 `src/lib/supabase.ts` 改为使用 `import.meta.env.VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`

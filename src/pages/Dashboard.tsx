@@ -85,7 +85,7 @@ export default function Dashboard() {
 
   const handleUnlockSpell = async (spellId: string) => {
     const spell = userSpells.find(s => s.id === spellId);
-    const currentIP = progress?.total_ip || 0;
+    const currentIP = (progress?.total_ip || userProgress?.totalIP || 0);
     
     if (spell && currentIP >= spell.ip_cost) {
       // Update local state
@@ -107,9 +107,10 @@ export default function Dashboard() {
   };
 
   const mbtiSpellUnlocked = userSpells.find(s => s.id === 'mbti_vision')?.unlocked || false;
-  // Check if user has enough points to access MBTI
-  const canAccessMBTI = (userProgress?.totalIP || 0) >= 25;
-  const userCurrentPoints = (userProgress?.totalIP || progress?.total_ip || 0);
+  // Prefer immediate source (progress.total_ip) updated by updateUserProgress, fallback to aggregated hook
+  const userCurrentPoints = (progress?.total_ip || userProgress?.totalIP || 0);
+  const canAccessMBTI = userCurrentPoints >= 25;
+
   const displayName = profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Learner';
 
   return (
@@ -141,7 +142,7 @@ export default function Dashboard() {
               <CardDescription className={canAccessMBTI ? 'text-white/90' : 'text-gray-500'}>
                 {canAccessMBTI ? 
                   'AI智能分析你的学习风格和性格特征' : 
-                  `完成阅读课程解锁 (需要25积分，当前${userProgress?.totalIP || 0}积分)`
+                  `完成阅读课程解锁 (需要25积分，当前${userCurrentPoints}积分)`
                 }
               </CardDescription>
             </CardHeader>
@@ -150,7 +151,7 @@ export default function Dashboard() {
                 onClick={() => navigate('/mbti')}
                 className="w-full bg-white text-purple-600 hover:bg-gray-100"
               >
-                🚀 开始AI评估 (当前积分: {userProgress?.totalIP || 0})
+                🚀 开始AI评估 (当前积分: {userCurrentPoints})
               </Button>
             </CardContent>
           </Card>
@@ -248,7 +249,7 @@ export default function Dashboard() {
 
           <TabsContent value="gamification">
             <GamificationPanel
-              userIP={progress?.total_ip || 0}
+              userIP={userCurrentPoints}
               badges={mockBadges}
               spells={userSpells}
               onUnlockSpell={handleUnlockSpell}
@@ -259,6 +260,9 @@ export default function Dashboard() {
             <MBTIProgress 
               indicators={progress?.mbti_indicators || mockWeeklyReport.mbti_progress}
               spellUnlocked={mbtiSpellUnlocked}
+              currentIP={userCurrentPoints}
+              requiredIP={25}
+              onUnlock={() => handleUnlockSpell('mbti_vision')}
             />
             
             <Card>

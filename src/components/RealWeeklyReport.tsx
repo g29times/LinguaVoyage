@@ -84,7 +84,7 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
             <Card>
               <CardContent className="p-4 text-center">
                 <div className="text-2xl font-bold text-purple-600">{safeProgress.totalIP || 0}</div>
-                <div className="text-sm text-muted-foreground">IP Points This Week</div>
+                <div className="text-sm text-muted-foreground">Total IP Points</div>
               </CardContent>
             </Card>
             <Card>
