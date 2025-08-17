@@ -12,6 +12,7 @@ import OAuthCallback from './components/auth/OAuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
+import MBTI from './pages/MBTI';
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/mbti" element={<ProtectedRoute><MBTI /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

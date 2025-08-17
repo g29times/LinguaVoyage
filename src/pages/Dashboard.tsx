@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,9 +25,17 @@ import {
 export default function Dashboard() {
   const { user } = useAuth();
   const { profile, progress, updateUserProgress } = useUserData();
-  const { progress: userProgress } = useUserProgress();
+  const { userProgress, refreshProgress } = useUserProgress();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('learning');
+  
+  // Force refresh user progress when component mounts to get latest points
+  useEffect(() => {
+    if (user && refreshProgress) {
+      console.log('💫 Dashboard: Refreshing user progress data...');
+      refreshProgress();
+    }
+  }, [user]);
   const [showWeeklyReport, setShowWeeklyReport] = useState(false);
   const [userSpells, setUserSpells] = useState(() => {
     // Initialize spells with user's unlocked status
@@ -99,6 +107,9 @@ export default function Dashboard() {
   };
 
   const mbtiSpellUnlocked = userSpells.find(s => s.id === 'mbti_vision')?.unlocked || false;
+  // Check if user has enough points to access MBTI
+  const canAccessMBTI = (userProgress?.totalIP || 0) >= 25;
+  const userCurrentPoints = (userProgress?.totalIP || progress?.total_ip || 0);
   const displayName = profile?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Learner';
 
   return (
@@ -116,16 +127,53 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Weekly Report Button */}
-        <div className="mb-6">
-          <Button 
-            onClick={() => setShowWeeklyReport(true)}
-            variant="outline"
-            className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200"
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            View Weekly Intelligence Summary
-          </Button>
+        {/* MBTI Assessment & Weekly Report Section */}
+        <div className="mb-6 grid md:grid-cols-2 gap-4">
+          {/* MBTI Assessment Card */}
+          <Card className={canAccessMBTI ? 
+            "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0" : 
+            "bg-gray-100 border-gray-200"
+          }>
+            <CardHeader className="pb-3">
+              <CardTitle className={`text-lg flex items-center ${canAccessMBTI ? 'text-white' : 'text-gray-600'}`}>
+                🧠 MBTI 性格评估
+              </CardTitle>
+              <CardDescription className={canAccessMBTI ? 'text-white/90' : 'text-gray-500'}>
+                {canAccessMBTI ? 
+                  'AI智能分析你的学习风格和性格特征' : 
+                  `完成阅读课程解锁 (需要25积分，当前${userProgress?.totalIP || 0}积分)`
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button 
+                onClick={() => navigate('/mbti')}
+                className="w-full bg-white text-purple-600 hover:bg-gray-100"
+              >
+                🚀 开始AI评估 (当前积分: {userProgress?.totalIP || 0})
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Weekly Report Button */}
+          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg text-gray-700">📊 学习报告</CardTitle>
+              <CardDescription className="text-gray-600">
+                查看本周学习情况和AI分析
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Button 
+                onClick={() => setShowWeeklyReport(true)}
+                variant="outline"
+                className="w-full"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                查看本周报告
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
@@ -221,17 +269,13 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">{userProgress?.progress?.totalSessions > 0 ? Math.round((userProgress.progress.totalSessions / 10) * 100) : 0}%</div>
-                    <div className="text-sm text-muted-foreground">Overall Progress</div>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{(userProgress?.progress?.totalSessions || 0) * 25}</div>
+                    <div className="text-2xl font-bold text-green-600">{(userProgress?.completedModules?.length || 0) * 8}</div>
                     <div className="text-sm text-muted-foreground">Words Learned</div>
                   </div>
                   <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">{Math.round((userProgress?.progress?.totalSessions || 0) * 0.5)}</div>
+                    <div className="text-2xl font-bold text-purple-600">{Math.round((userProgress?.totalSessions || 0) * 0.5)}</div>
                     <div className="text-sm text-muted-foreground">Hours Practiced</div>
                   </div>
                 </div>

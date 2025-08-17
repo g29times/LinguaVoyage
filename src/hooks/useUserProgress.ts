@@ -113,5 +113,11 @@ export function useUserProgress() {
     }
   };
 
-  return { progress, loading, error, refreshProgress: loadUserProgress };
+  return { 
+    userProgress: progress, // Map progress to userProgress for component compatibility
+    progress, // Keep original for backward compatibility
+    loading, 
+    error, 
+    refreshProgress: loadUserProgress 
+  };
 }

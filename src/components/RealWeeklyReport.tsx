@@ -11,9 +11,9 @@ interface RealWeeklyReportProps {
 }
 
 export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportProps) {
-  const { progress, loading, error } = useUserProgress();
+  const { userProgress, loading, error } = useUserProgress();
   
-  console.log('RealWeeklyReport - Loading:', loading, 'Error:', error, 'Progress:', progress);
+  console.log('RealWeeklyReport - Loading:', loading, 'Error:', error, 'UserProgress:', userProgress);
 
   const getWeekDateRange = () => {
     const now = new Date();
@@ -51,8 +51,8 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
     );
   }
 
-  // Fallback for when progress is undefined/null
-  const safeProgress = progress || {
+  // Fallback for when userProgress is undefined/null
+  const safeProgress = userProgress || {
     totalSessions: 0,
     weeklyIP: 0,
     totalIP: 0,
@@ -83,7 +83,7 @@ export default function RealWeeklyReport({ isOpen, onClose }: RealWeeklyReportPr
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-purple-600">{safeProgress.weeklyIP || 0}</div>
+                <div className="text-2xl font-bold text-purple-600">{safeProgress.totalIP || 0}</div>
                 <div className="text-sm text-muted-foreground">IP Points This Week</div>
               </CardContent>
             </Card>
