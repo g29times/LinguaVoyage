@@ -2,32 +2,42 @@
 
 ## 🚨 高优先级问题
 
-### 1. Section计数不匹配 (正在修复中)
-**问题：** 页面显示"Section 5 of 5"但进度显示"3/4 Sections Completed"
-**原因：** 前端硬编码5个sections vs 数据库实际4个sections
-**状态：** 🔧 修复中
-**修复方案：** 使用数据库真实sections，删除硬编码数组
+### 1. 环境变量与安全
+**问题：** Supabase 与 OpenRouter 密钥在前端暴露，存在安全与 CORS 风险。
+**方案：**
+- 将 `src/lib/supabase.ts` 改为使用 `import.meta.env.VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`
+- 完善 `.env.example` 与 `README.md` 的环境配置说明
+- 将 OpenRouter 调用迁移至后端（Supabase Edge Function/轻服务），前端仅调用受控接口
+- 过渡期：使用 `.env.local` 管理 `VITE_OPENROUTER_API_KEY`，并保留组件内回退逻辑
 
-### 2. Review Module按钮不显示
+### 2. 数据库类型与代码一致性
+**问题：** 实际使用表未在 `Database` 类型中定义，易导致类型漂移/运行时错误。
+**方案：**
+- 在 `src/lib/supabase.ts` 的 `Database` 中补充 `app_24b6a0157d_learning_modules`、`app_24b6a0157d_user_module_progress`
+- 为查询添加显式类型注解或采用 codegen 生成类型，提升类型安全
+
+### 3. 进度与积分来源统一
+**问题：** MBTI 页面从多源读取积分，可能出现不一致。
+**方案：**
+- 统一以单一可信源计算/存储 `total_ip`
+- 调整 `src/hooks/useUserProgress.ts`（及 `useUserData`）读取与刷新策略，提供一致的 `refreshProgress`
+
+### 4. MBTI 结果解析健壮性
+**问题：** LLM JSON 输出偶发不规范。
+**方案：**
+- 使用 `zod` 校验 `MBTIAssessmentResult` 结构
+- 完善错误日志与回退策略，保证 UI 稳定
+
+## 🟢 低优先级问题
+
+### Review Module 按钮不显示（暂不做）
 **问题：** 已完成课程仍显示"Start Module"而不是"Review Module"
-**原因：** completedModules数组为空，未正确读取用户完成状态
-**状态：** ⏳ 待修复
-**修复方案：** 
-- 检查数据库查询逻辑
-- 添加localStorage备用方案
-- 确保按钮状态正确更新
-
-### 3. "Failed to load learning module"错误
-**问题：** 点击未开发课程显示红色错误信息而非友好的Coming Soon页面
-**原因：** 错误处理逻辑未正确区分"模块不存在"vs"模块未开发"
-**状态：** ⏳ 待修复
-**修复方案：**
-- 改进错误判断逻辑
-- 确保Coming Soon组件正确显示
-- 添加模块可用性检查
+**方案：** 检查完成状态查询逻辑，必要时增加 localStorage 兜底
 
 ## ✅ 已修复问题
 
+- ✅ Section 计数不匹配（硬编码 vs 实际 sections）
+- ✅ 未开发课程错误提示，已替换为 Coming Soon 降级页面
 - ✅ JavaScript运行时错误导致应用崩溃
 - ✅ Supabase 400 Bad Request错误
 - ✅ Progress页面假数据(85%, 1,247, 156)
@@ -39,4 +49,4 @@
 - **调试模式：** 已启用详细日志
 
 ---
-*最后更新：2025-08-16*
+*最后更新：2025-08-17*

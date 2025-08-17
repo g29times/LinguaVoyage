@@ -84,12 +84,24 @@ LinguaVoyage is a cutting-edge language learning platform that combines artifici
 3. **Environment Setup**
    ```bash
    # Copy environment template
+   # Windows (PowerShell)
+   Copy-Item .env.example .env.local
+   # macOS/Linux
    cp .env.example .env.local
-   
-   # Configure your Supabase credentials in .env.local
+
+   # Edit .env.local and fill these vars
    VITE_SUPABASE_URL=your_supabase_url
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   # Optional for local direct OpenRouter calls (prod uses Edge Function)
+   VITE_OPENROUTER_API_KEY=
+   # Optional
+   VITE_SUNRA_API_KEY=
    ```
+
+   Notes:
+   - Do NOT commit `.env.local`.
+   - Place env files at project root (not inside `src/`).
+   - Keys are read via `import.meta.env` in Vite.
 
 4. **Start development server**
    ```bash
@@ -108,6 +120,43 @@ pnpm run build
 # Preview the build
 pnpm run preview
 ```
+
+### 🔌 Supabase Edge Function (OpenRouter proxy)
+
+To avoid exposing keys and handle CORS, MBTI assessment calls a server-side function.
+
+Path: `supabase/functions/mbti-assess/index.ts`
+
+Deploy steps (using Supabase CLI):
+
+```bash
+# 1) Login and link (run once per machine/project)
+supabase login
+supabase link --project-ref <your-project-ref>
+
+# 2) Set server secret (OpenRouter API key stays on server)
+supabase secrets set OPENROUTER_API_KEY=sk-or-... 
+
+# 3) Deploy the function
+supabase functions deploy mbti-assess
+
+# (Optional) Local serve for testing
+supabase functions serve mbti-assess --env-file .env
+```
+
+Frontend calls:
+
+```ts
+import { supabase } from '@/lib/supabase';
+
+const { data, error } = await supabase.functions.invoke('mbti-assess', {
+  body: { prompt, model: 'google/gemini-2.5-flash-lite' },
+});
+```
+
+Security:
+- API keys are not shipped to the browser.
+- Remove hardcoded keys from source; use env + server-side proxy.
 
 ### 📁 Project Structure
 

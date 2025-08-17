@@ -1,4 +1,5 @@
 import { llmConfig, LearningBehaviorData, MBTIAssessmentResult } from '@/lib/llm-config';
+import { supabase } from '@/lib/supabase';
 
 export class MBTIAssessmentService {
   private readonly apiKey: string;
@@ -9,18 +10,47 @@ export class MBTIAssessmentService {
     this.baseUrl = llmConfig.baseUrls.openRouter;
   }
 
+  private async callEdgeFunction(prompt: string): Promise<string> {
+    const { data, error } = await supabase.functions.invoke('mbti-assess', {
+      body: {
+        prompt,
+        model: 'google/gemini-2.5-flash-lite',
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data && typeof data === 'object' && typeof (data as any).content === 'string') {
+      return (data as any).content as string;
+    }
+    if (typeof data === 'string') return data as string;
+    return JSON.stringify(data ?? {});
+  }
+
   /**
    * Generate AI-driven MBTI assessment based on learning behavior
    */
   async generateAssessment(behaviorData: LearningBehaviorData): Promise<MBTIAssessmentResult> {
-    if (!this.apiKey) {
-      throw new Error('OpenRouter API key is not configured. Please contact support for API access.');
-    }
-
     try {
       const prompt = this.createAssessmentPrompt(behaviorData);
-      const response = await this.callOpenRouter(prompt);
-      return this.parseAssessmentResult(response);
+      // Prefer server-side function (avoids exposing API keys and CORS issues)
+      try {
+        const edgeContent = await this.callEdgeFunction(prompt);
+        return this.parseAssessmentResult(edgeContent);
+      } catch (edgeError) {
+        console.warn('Edge function failed, falling back to direct OpenRouter call:', edgeError);
+      }
+
+      // Fallback to direct OpenRouter if API key is configured
+      if (this.apiKey) {
+        const response = await this.callOpenRouter(prompt);
+        return this.parseAssessmentResult(response);
+      }
+
+      // Final fallback: local heuristic
+      return this.fallbackAssessment(behaviorData);
     } catch (error) {
       console.error('MBTI Assessment Error:', error);
       // Fallback to basic assessment if API fails
@@ -105,7 +135,7 @@ Provide insights that will help them on their language learning journey!
           }
         ],
         temperature: 0.7,
-        max_tokens: 1500,
+        max_tokens: 8192,
         response_format: { type: 'json_object' }
       })
     });

@@ -9,7 +9,7 @@ export interface LLMConfig {
 }
 
 export const llmConfig: LLMConfig = {
-  openRouterApiKey: import.meta.env.VITE_OPENROUTER_API_KEY || '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',
+  openRouterApiKey: import.meta.env.VITE_OPENROUTER_API_KEY || '',
   sunraApiKey: import.meta.env.VITE_SUNRA_API_KEY || '',
   baseUrls: {
     openRouter: 'https://openrouter.ai/api/v1',

@@ -1,7 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://qvntafrmpjswmzlnnphh.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2bnRhZnJtcGpzd216bG5ucGhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzMjQ1NTYsImV4cCI6MjA3MDkwMDU1Nn0.IMg5N7x4mDG87ytFBqftk6N4sbkb1UyNqvGRmRntff8';
+// NOTE: Previously hardcoded for convenience. Kept here commented per cautious refactor rule.
+// const supabaseUrl = 'https://qvntafrmpjswmzlnnphh.supabase.co';
+// const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2bnRhZnJtcGpzd216bG5ucGhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzMjQ1NTYsImV4cCI6MjA3MDkwMDU1Nn0.IMg5N7x4mDG87ytFBqftk6N4sbkb1UyNqvGRmRntff8';
+
+// Use environment variables (configure in .env.local)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Set them in .env.local');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
