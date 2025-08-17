@@ -283,7 +283,7 @@ LinguaVoyage 是一个前沿的语言学习平台，结合人工智能与现代�
 
 ## 📧 Contact & Support
 
-- **Project Maintainer**: MetaGPTX Team
+- **Project Maintainer**: NEO Team
 - **GitHub Issues**: [Report bugs or request features](https://github.com/g29times/LinguaVoyage/issues)
 
 ---
@@ -291,5 +291,5 @@ LinguaVoyage 是一个前沿的语言学习平台，结合人工智能与现代�
 <div align="center">
   <strong>🌟 Star this repository if you find it helpful! 🌟</strong>
   <br><br>
-  Made with ❤️ by the MetaGPTX Team
+  Made with ❤️ by the NEO Team
 </div>
