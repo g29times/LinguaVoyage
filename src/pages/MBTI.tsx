@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AIAssessmentResult } from '@/components/mbti/AIAssessmentResult';
@@ -29,18 +29,18 @@ export default function MBTI() {
       profile,
       totalIP: userProgress?.totalIP,
       progressTotalIP: progress?.total_ip,
-      profileTotalIP: profile?.total_ip,
       loading,
-      canAccess: (userProgress?.totalIP || progress?.total_ip || profile?.total_ip || 0) >= 25
+      canAccess: (userProgress?.totalIP || progress?.total_ip || 0) >= 25
     });
   }, [userProgress, progress, profile, loading]);
 
   // Get current points from multiple possible sources
-  const currentPoints = userProgress?.totalIP || progress?.total_ip || profile?.total_ip || 0;
-  console.log('🚨 MBTI Critical Check - Current Points:', currentPoints, 'Required:', 25, 'Should unlock:', currentPoints >= 25);
+  const currentPoints = userProgress?.totalIP || progress?.total_ip || 0;
+  const isUnlocked = !!progress?.unlocked_spells?.includes('mbti_vision');
+  console.log('🚨 MBTI Gate Check:', { currentPoints, required: 25, isUnlocked, allow: isUnlocked || currentPoints >= 25 });
   
-  // Check if user has enough points (safe access) - use multiple data sources
-  const canAccessMBTI = currentPoints >= 25;
+  // Allow access if already unlocked or has enough points
+  const canAccessMBTI = isUnlocked || currentPoints >= 25;
 
   if (!user) {
     navigate('/auth');

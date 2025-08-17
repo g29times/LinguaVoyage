@@ -13,6 +13,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import MBTI from './pages/MBTI';
+import Points from './pages/Points';
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/settings" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/mbti" element={<ProtectedRoute><MBTI /></ProtectedRoute>} />
+            <Route path="/points" element={<ProtectedRoute><Points /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

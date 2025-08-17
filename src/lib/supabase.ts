@@ -120,6 +120,27 @@ export type Database = {
         };
         Update: Partial<Omit<Database['public']['Tables']['app_24b6a0157d_learning_sessions']['Insert'], 'user_id'>>;
       };
+      app_24b6a0157d_ip_ledger: {
+        Row: {
+          id: string;
+          user_id: string;
+          amount_delta: number; // positive for earn, negative for spend
+          activity: string; // e.g., 'mbti_assessment', 'module_reward'
+          description: string | null;
+          metadata: Record<string, unknown> | null;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          amount_delta: number;
+          activity: string;
+          description?: string | null;
+          metadata?: Record<string, unknown> | null;
+          created_at?: string;
+          id?: string;
+        };
+        Update: Partial<Omit<Database['public']['Tables']['app_24b6a0157d_ip_ledger']['Insert'], 'user_id'>>;
+      };
     };
   };
 };

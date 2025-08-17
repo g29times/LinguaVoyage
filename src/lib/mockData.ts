@@ -58,15 +58,6 @@ export const mockBadges: Badge[] = [
 // Mock spells
 export const mockSpells: Spell[] = [
   {
-    id: 'word_insight',
-    name: 'Word Insight',
-    description: 'Unlock advanced vocabulary analysis with etymology and usage patterns',
-    icon: '✨',
-    ip_cost: 50,
-    category: 'vocabulary',
-    unlocked: true
-  },
-  {
     id: 'mbti_vision',
     name: 'MBTI Vision',
     description: 'View your personality profiling progress and insights',
@@ -74,6 +65,15 @@ export const mockSpells: Spell[] = [
     ip_cost: 25,
     category: 'progress',
     unlocked: false
+  },
+  {
+    id: 'word_insight',
+    name: 'Word Insight',
+    description: 'Unlock advanced vocabulary analysis with etymology and usage patterns',
+    icon: '✨',
+    ip_cost: 50,
+    category: 'vocabulary',
+    unlocked: true
   },
   {
     id: 'linguistic_radar',

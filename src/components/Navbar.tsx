@@ -51,12 +51,18 @@ export default function Navbar() {
           </div>
 
           {/* IP Points */}
-          <div className="flex items-center space-x-2">
+          <Button
+            onClick={() => navigate('/points')}
+            variant="ghost"
+            className="flex items-center space-x-2 h-auto p-1 hover:bg-blue-50"
+            aria-label="View Points History"
+            title="View Points"
+          >
             <Brain className="h-5 w-5 text-blue-500" />
             <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
               {totalIP.toLocaleString()} IP
             </Badge>
-          </div>
+          </Button>
 
           {/* User Avatar with Dropdown */}
           <DropdownMenu>

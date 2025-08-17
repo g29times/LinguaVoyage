@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import RealWeeklyReport from '@/components/RealWeeklyReport';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserData } from '@/hooks/useUserData';
 import { useUserProgress } from '@/hooks/useUserProgress';
+import { requestDeduplicator, createButtonDebouncer } from '@/utils/debounce';
 import { 
   mockLearningModules, 
   mockAICompanions, 
@@ -21,6 +22,7 @@ import {
   mockSpells, 
   mockWeeklyReport 
 } from '@/lib/mockData';
+import { supabase } from '@/lib/supabase';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -28,6 +30,7 @@ export default function Dashboard() {
   const { userProgress, refreshProgress } = useUserProgress();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('learning');
+  const unlockDebouncerRef = useRef(createButtonDebouncer(1500));
   
   // Force refresh user progress when component mounts to get latest points
   useEffect(() => {
@@ -44,6 +47,14 @@ export default function Dashboard() {
       unlocked: progress?.unlocked_spells?.includes(spell.id) || false
     }));
   });
+
+  // Keep local spells in sync with backend whenever progress updates
+  useEffect(() => {
+    setUserSpells(prev => prev.map(spell => ({
+      ...spell,
+      unlocked: !!progress?.unlocked_spells?.includes(spell.id),
+    })));
+  }, [progress?.unlocked_spells]);
 
   const handleStartModule = (moduleId: string) => {
     console.log('🚀 Starting learning module:', moduleId);
@@ -84,26 +95,67 @@ export default function Dashboard() {
   };
 
   const handleUnlockSpell = async (spellId: string) => {
+    // For MBTI, the bottom entry should route to the assessment page.
+    if (spellId === 'mbti_vision') {
+      navigate('/mbti');
+      return;
+    }
     const spell = userSpells.find(s => s.id === spellId);
     const currentIP = (progress?.total_ip || userProgress?.totalIP || 0);
-    
-    if (spell && currentIP >= spell.ip_cost) {
-      // Update local state
-      setUserSpells(prev => prev.map(s => 
-        s.id === spellId ? { ...s, unlocked: true } : s
-      ));
 
-      // Update database
-      const newUnlockedSpells = [...(progress?.unlocked_spells || []), spellId];
-      const newTotalIP = currentIP - spell.ip_cost;
-      
-      await updateUserProgress({
-        unlocked_spells: newUnlockedSpells,
-        total_ip: newTotalIP
+    if (!spell) return;
+
+    // Already unlocked? prevent duplicate writes
+    const alreadyUnlocked = (progress?.unlocked_spells || []).includes(spellId);
+    if (alreadyUnlocked) {
+      setUserSpells(prev => prev.map(s => s.id === spellId ? { ...s, unlocked: true } : s));
+      return;
+    }
+
+    if (currentIP < spell.ip_cost) return;
+
+    await unlockDebouncerRef.current.executeWithDebounce(async () => {
+      // Update local state optimistically
+      setUserSpells(prev => prev.map(s => s.id === spellId ? { ...s, unlocked: true } : s));
+
+      // Build unique unlocked_spells
+      const unique = new Set([...(progress?.unlocked_spells || []), spellId]);
+      const newUnlockedSpells = Array.from(unique);
+
+      const dedupeKey = `unlock-spell:${user?.id}:${spellId}`;
+      await requestDeduplicator.deduplicate(dedupeKey, async () => {
+        // Atomic spend + ledger with idempotency
+        try {
+          if (user) {
+            const { error: rpcErr } = await supabase.rpc('fn_spend_ip_and_log', {
+              p_user_id: user.id,
+              p_amount: spell.ip_cost,
+              p_activity: 'unlock_spell',
+              p_description: `Unlock spell: ${spell.name}`,
+              p_metadata: { spell_id: spell.id, spell_name: spell.name },
+              p_idempotency_key: dedupeKey,
+            });
+            if (rpcErr) {
+              console.error('❌ RPC spend failed for unlock:', rpcErr);
+              throw rpcErr;
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Unlock RPC failed, reverting optimistic UI.', e);
+          // Revert optimistic local state if RPC fails
+          setUserSpells(prev => prev.map(s => s.id === spellId ? { ...s, unlocked: false } : s));
+          return;
+        }
+
+        // Update unlocked_spells (do not touch total_ip; RPC already deducted)
+        await updateUserProgress({
+          unlocked_spells: newUnlockedSpells,
+        });
+        if (refreshProgress) refreshProgress();
       });
 
       alert(`Unlocked "${spell.name}"!\n\nThis spell is now active and enhancing your learning experience.`);
-    }
+    });
   };
 
   const mbtiSpellUnlocked = userSpells.find(s => s.id === 'mbti_vision')?.unlocked || false;

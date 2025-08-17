@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,10 @@ import { Loader2, Brain, Sparkles, Target, Lightbulb } from 'lucide-react';
 import { MBTIAssessmentResult } from '@/lib/llm-config';
 import { mbtiService } from '@/services/mbti-assessment';
 import { useUserProgress } from '@/hooks/useUserProgress';
+import { useUserData } from '@/hooks/useUserData';
+import { requestDeduplicator } from '@/utils/debounce';
+import { supabase } from '@/lib/supabase';
+
 import { toast } from 'sonner';
 
 interface AIAssessmentResultProps {
@@ -19,16 +24,112 @@ export const AIAssessmentResult: React.FC<AIAssessmentResultProps> = ({ userId, 
   const [assessment, setAssessment] = useState<MBTIAssessmentResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { userProgress } = useUserProgress();
+  const { userProgress, refreshProgress } = useUserProgress();
+  const { progress, refreshUserData } = useUserData();
+
+  // Available IP for gating UI
+  const availableIP = (userProgress?.totalIP ?? progress?.total_ip ?? 0);
 
   const startAssessment = async () => {
     setLoading(true);
     setError(null);
     
     try {
+      // Pre-check: fetch freshest points; require >= 25 before running LLM
+      const { data: precheck, error: preErr } = await supabase
+        .from('app_24b6a0157d_user_progress')
+        .select('total_ip, unlocked_spells')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (preErr) console.error('❌ MBTI precheck fetch failed:', preErr);
+      const preTotal = precheck?.total_ip ?? 0;
+      if (preTotal < 25) {
+        toast.error('Not enough IP to run assessment (25 required)');
+        throw new Error('Insufficient IP before assessment');
+      }
+
       const behaviorData = mbtiService.collectBehaviorData(userId, userProgress);
       const result = await mbtiService.generateAssessment(behaviorData);
+
+      // Persist to DB and (if first time) deduct IP and unlock spell
+      const dedupeKey = `mbti-assess:save:${userId}`;
+      await requestDeduplicator.deduplicate(dedupeKey, async () => {
+        // Normalize dimensions from -100..100 to 0..1
+        const to01 = (v: number) => Math.min(1, Math.max(0, (v + 100) / 200));
+        const indicators = {
+          extraversion_score: to01(result.dimensions.extroversion),
+          sensing_score: to01(result.dimensions.sensing),
+          thinking_score: to01(result.dimensions.thinking),
+          judging_score: to01(result.dimensions.judging),
+          confidence_level: Math.min(1, Math.max(0, (result.confidence ?? 85) / 100)),
+          data_points: (userProgress?.completedModules?.length || 0),
+        } as const;
+
+        // Atomic: call RPC to deduct IP, update indicators/unlock, and log ledger in one transaction
+        try {
+          const { data: rpcData, error: rpcErr } = await supabase.rpc('fn_mbti_save_and_charge', {
+            p_user_id: userId,
+            p_indicators: indicators as any,
+            p_amount: 25,
+            p_idempotency_key: dedupeKey,
+            p_metadata: { personality: result.personality, confidence: result.confidence },
+          });
+          if (rpcErr) {
+            throw rpcErr;
+          }
+          console.log('✅ MBTI save: RPC success', rpcData);
+        } catch (rpcErr) {
+          console.warn('⚠️ MBTI save: RPC unavailable or failed, falling back to client-side update + ledger insert', rpcErr);
+
+          // Fallback: fetch freshest progress directly
+          const { data: current, error: fetchErr } = await supabase
+            .from('app_24b6a0157d_user_progress')
+            .select('total_ip, unlocked_spells')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (fetchErr) console.error('❌ MBTI fallback: fetch current progress failed:', fetchErr);
+          const currTotal = current?.total_ip ?? 0;
+          const currSpells: string[] = current?.unlocked_spells ?? [];
+
+          if (currTotal < 25) {
+            console.warn('⚠️ MBTI fallback: insufficient IP at save time, aborting save');
+            throw new Error('Insufficient IP at save time');
+          }
+          const nextTotalIP = Math.max(0, currTotal - 25);
+          const nextSpells = Array.from(new Set([...currSpells, 'mbti_vision']));
+
+          const { error: updateErr } = await supabase
+            .from('app_24b6a0157d_user_progress')
+            .update({
+              mbti_indicators: indicators,
+              unlocked_spells: nextSpells,
+              total_ip: nextTotalIP,
+            })
+            .eq('user_id', userId);
+          if (updateErr) {
+            console.error('❌ MBTI fallback: update failed:', updateErr);
+            throw updateErr;
+          }
+          // Write ledger entry for MBTI assessment spend (25 IP)
+          try {
+            await supabase.from('app_24b6a0157d_ip_ledger').insert({
+              user_id: userId,
+              amount_delta: -25,
+              activity: 'mbti_assessment',
+              description: 'MBTI assessment',
+              metadata: { personality: result.personality, confidence: result.confidence, source: 'fallback' },
+            });
+          } catch (ledgerErr) {
+            console.warn('⚠️ MBTI fallback: ledger insert failed:', ledgerErr);
+          }
+        }
+      });
+
+      // On success, set local result and refresh data so dashboard & this page see updates
       setAssessment(result);
+      // Ensure dashboard & this page see updated points/indicators
+      if (refreshProgress) refreshProgress();
+      if (refreshUserData) await refreshUserData();
       toast.success('AI assessment completed!');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Assessment failed';
@@ -37,6 +138,16 @@ export const AIAssessmentResult: React.FC<AIAssessmentResultProps> = ({ userId, 
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper for stored indicators (0..1) -> MBTI type
+  const getTypeFromIndicators = (inds: any) => {
+    if (!inds) return '----';
+    const e = inds.extraversion_score > 0.5 ? 'E' : 'I';
+    const s = inds.sensing_score > 0.5 ? 'S' : 'N';
+    const t = inds.thinking_score > 0.5 ? 'T' : 'F';
+    const j = inds.judging_score > 0.5 ? 'J' : 'P';
+    return `${e}${s}${t}${j}`;
   };
 
   const getDimensionLabel = (dimension: string, value: number) => {
@@ -101,6 +212,8 @@ export const AIAssessmentResult: React.FC<AIAssessmentResultProps> = ({ userId, 
   }
 
   if (!assessment) {
+    const stored = progress?.mbti_indicators as any | undefined;
+    const hasStored = !!stored && (stored?.data_points ?? 0) > 0;
     return (
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader className="text-center">
@@ -113,6 +226,34 @@ export const AIAssessmentResult: React.FC<AIAssessmentResultProps> = ({ userId, 
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {hasStored && (
+            <div className="space-y-4 p-4 rounded-lg border bg-gradient-to-r from-blue-50 to-purple-50">
+              <h4 className="font-semibold">Your Last Assessment</h4>
+              <div className="text-center">
+                <span className="inline-block text-2xl font-bold text-blue-700 mb-1">{getTypeFromIndicators(stored)}</span>
+                <div className="text-xs text-muted-foreground">Confidence {Math.round((stored?.confidence_level ?? 0) * 100)}% • {stored?.data_points ?? 0} data points</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex justify-between text-xs"><span>Extraversion (E)</span><span>{Math.round((stored?.extraversion_score ?? 0) * 100)}%</span></div>
+                  <Progress value={(stored?.extraversion_score ?? 0) * 100} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs"><span>Sensing (S)</span><span>{Math.round((stored?.sensing_score ?? 0) * 100)}%</span></div>
+                  <Progress value={(stored?.sensing_score ?? 0) * 100} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs"><span>Thinking (T)</span><span>{Math.round((stored?.thinking_score ?? 0) * 100)}%</span></div>
+                  <Progress value={(stored?.thinking_score ?? 0) * 100} className="h-2" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs"><span>Judging (J)</span><span>{Math.round((stored?.judging_score ?? 0) * 100)}%</span></div>
+                  <Progress value={(stored?.judging_score ?? 0) * 100} className="h-2" />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg border">
             <h4 className="font-semibold mb-2 flex items-center">
               <Brain className="h-5 w-5 mr-2 text-blue-600" />
@@ -125,10 +266,14 @@ export const AIAssessmentResult: React.FC<AIAssessmentResultProps> = ({ userId, 
           </div>
           
           <div className="text-center">
-            <Button onClick={startAssessment} size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600">
+            <div className="mb-2 text-xs text-muted-foreground">Costs 25 IP • You have {availableIP} IP</div>
+            <Button onClick={startAssessment} size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600" disabled={availableIP < 25}>
               <Sparkles className="h-5 w-5 mr-2" />
-              Start AI Assessment
+              {hasStored ? 'Re-run AI Assessment' : 'Start AI Assessment'}
             </Button>
+            {availableIP < 25 && (
+              <div className="mt-2 text-xs text-red-500">You need {25 - availableIP} more IP to run the assessment.</div>
+            )}
           </div>
         </CardContent>
       </Card>

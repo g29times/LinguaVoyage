@@ -64,7 +64,7 @@ export default function MBTIProgress({ indicators, spellUnlocked, currentIP = 0,
             </div>
             {currentIP >= requiredIP ? (
               <Button size="sm" onClick={onUnlock} className="bg-purple-600 text-white hover:bg-purple-700">
-                Unlock now
+                Start AI Assessment
               </Button>
             ) : (
               <Button size="sm" variant="outline" disabled>
