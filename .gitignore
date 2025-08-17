@@ -7,10 +7,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Local
+.env
+.env.local
+.env.production
+windsurf_deployment.yaml
 node_modules
 dist
 dist-ssr
 *.local
+.netlify
 
 # Editor directories and files
 .vscode/*
@@ -27,9 +33,6 @@ node_modules/
 .DS_Store
 dist/
 build/
-.env
-.env.local
-.env.production
 uploads/
 *.mp4
 *.mov
