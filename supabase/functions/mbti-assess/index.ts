@@ -87,7 +87,40 @@ serve(async (req) => {
     const data = await resp.json();
     const content: string = data?.choices?.[0]?.message?.content ?? "";
 
-    return new Response(JSON.stringify({ content }), { headers });
+    // Try to parse and normalize the model JSON so the frontend receives a stable structure
+    try {
+      const parsed = JSON.parse(content);
+
+      const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Number.isFinite(v) ? v : 0));
+      const clampDim = (v: number) => clamp(v ?? 0, -100, 100);
+      const normConfidence = (c: unknown) => {
+        const num = typeof c === "number" ? c : NaN;
+        const val = Number.isFinite(num) ? (num <= 1 ? num * 100 : num) : 85;
+        return clamp(val, 0, 100);
+      };
+
+      const result = {
+        personality: typeof parsed?.personality === "string" ? parsed.personality : "ISTJ",
+        dimensions: {
+          extroversion: clampDim(parsed?.dimensions?.extroversion),
+          sensing: clampDim(parsed?.dimensions?.sensing),
+          thinking: clampDim(parsed?.dimensions?.thinking),
+          judging: clampDim(parsed?.dimensions?.judging),
+        },
+        analysis: {
+          learningStyle: parsed?.analysis?.learningStyle ?? "Adaptive learner",
+          strengths: Array.isArray(parsed?.analysis?.strengths) ? parsed.analysis.strengths : ["Quick learner", "Dedicated", "Curious"],
+          recommendations: Array.isArray(parsed?.analysis?.recommendations) ? parsed.analysis.recommendations : ["Continue regular practice", "Explore diverse content", "Set learning goals"],
+          personalizedMessage: parsed?.analysis?.personalizedMessage ?? "You're doing great on your learning journey!",
+        },
+        confidence: normConfidence(parsed?.confidence),
+      };
+
+      return new Response(JSON.stringify(result), { headers });
+    } catch (_) {
+      // If the model didn't return valid JSON, surface an error for the client to decide fallback
+      return new Response(JSON.stringify({ error: "Invalid model JSON response" }), { status: 502, headers });
+    }
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers });
   }

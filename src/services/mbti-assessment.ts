@@ -22,8 +22,16 @@ export class MBTIAssessmentService {
       throw error;
     }
 
-    if (data && typeof data === 'object' && typeof (data as any).content === 'string') {
-      return (data as any).content as string;
+    // New: Edge Function now returns structured JSON. If so, stringify for a unified parser.
+    if (data && typeof data === 'object') {
+      const d: any = data;
+      if ('personality' in d && 'dimensions' in d && 'analysis' in d) {
+        return JSON.stringify(d);
+      }
+      if (typeof d.content === 'string') {
+        return d.content as string; // backward compatibility
+      }
+      return JSON.stringify(d);
     }
     if (typeof data === 'string') return data as string;
     return JSON.stringify(data ?? {});
@@ -35,22 +43,15 @@ export class MBTIAssessmentService {
   async generateAssessment(behaviorData: LearningBehaviorData): Promise<MBTIAssessmentResult> {
     try {
       const prompt = this.createAssessmentPrompt(behaviorData);
-      // Prefer server-side function (avoids exposing API keys and CORS issues)
+      // Always prefer server-side function (security & observability)
       try {
         const edgeContent = await this.callEdgeFunction(prompt);
         return this.parseAssessmentResult(edgeContent);
       } catch (edgeError) {
-        console.warn('Edge function failed, falling back to direct OpenRouter call:', edgeError);
+        console.warn('Edge function failed, falling back to local heuristic:', edgeError);
+        // Final fallback: local heuristic only (no direct OpenRouter call from frontend)
+        return this.fallbackAssessment(behaviorData);
       }
-
-      // Fallback to direct OpenRouter if API key is configured
-      if (this.apiKey) {
-        const response = await this.callOpenRouter(prompt);
-        return this.parseAssessmentResult(response);
-      }
-
-      // Final fallback: local heuristic
-      return this.fallbackAssessment(behaviorData);
     } catch (error) {
       console.error('MBTI Assessment Error:', error);
       // Fallback to basic assessment if API fails
@@ -171,7 +172,12 @@ Provide insights that will help them on their language learning journey!
           recommendations: Array.isArray(parsed.analysis.recommendations) ? parsed.analysis.recommendations : ['Continue regular practice', 'Explore diverse content', 'Set learning goals'],
           personalizedMessage: parsed.analysis.personalizedMessage || 'You\'re doing great on your learning journey!'
         },
-        confidence: Math.min(100, Math.max(0, parsed.confidence || 85))
+        // Normalize confidence: support models returning 0..1 or 0..100
+        confidence: (() => {
+          const raw = parsed.confidence;
+          let val = typeof raw === 'number' ? (raw <= 1 ? raw * 100 : raw) : 85;
+          return Math.min(100, Math.max(0, val));
+        })()
       };
     } catch (error) {
       console.error('Failed to parse assessment result:', error);
